@@ -30,6 +30,9 @@ Model Discovery Tool（模型发现工具）是为 [OpenClaw](https://github.com
 - 单个模型的独立额度统计（📊）
 - 可视化进度条，颜色随剩余比例变化（绿 > 黄 > 红）
 
+> ⚠️ **注意**：额度监控目前仅支持 **ModelScope（魔搭）** API。不同 Provider 返回的 Rate Limit 响应头格式各不相同，暂未做通用适配。
+> 其他 Provider（如 OpenAI、DeepSeek 等）使用时不会显示额度信息，不影响正常功能。
+
 ### 💬 在线测试
 - 直接在浏览器中对模型发送消息，流式（Streaming）响应展示
 - 显示响应时间、Token 消耗、生成速度（tok/s）
