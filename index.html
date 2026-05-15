@@ -1,0 +1,1417 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔍 模型发现 - OpenClaw</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --sidebar: #141425;
+    --card: #1a1a2e;
+    --border: #2a2a4a;
+    --accent: #e94560;
+    --accent2: #0f3460;
+    --text: #e0e0e0;
+    --text-dim: #8888aa;
+    --green: #00d2a0;
+    --yellow: #ffc857;
+    --blue: #4fc3f7;
+    --code-bg: #12121f;
+    --gradient: linear-gradient(135deg, #e94560, #0f3460);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== Layout ===== */
+  .app {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* Left Sidebar */
+  .sidebar {
+    width: 380px;
+    min-width: 380px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-header h1 {
+    font-size: 1.2em;
+    font-weight: 800;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline;
+  }
+  .sidebar-header .subtitle {
+    font-size: 0.75em;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .sidebar-fixed {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--sidebar);
+  }
+
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px 12px;
+  }
+  .sidebar-scroll::-webkit-scrollbar { width: 5px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* API Form */
+  .api-form label {
+    display: block;
+    font-size: 0.8em;
+    color: var(--text-dim);
+    margin: 14px 0 5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .api-form input[type="text"],
+  .api-form input[type="password"] {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.9em;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-form input:focus { border-color: var(--blue); }
+  .api-form input::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+  .input-with-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .input-with-actions input { flex: 1; }
+  .input-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 8px 4px;
+    margin: 0;
+    transition: color 0.15s;
+  }
+  .input-action-btn:hover { color: var(--accent); }
+  .btn-clear { font-size: 1em; font-weight: 700; }
+
+  /* Import & Provider Button Row */
+  .import-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .import-wrap, .provider-wrap {
+    position: relative;
+  }
+  .btn-import {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 14px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .btn-import:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-import.active { border-color: var(--blue); color: var(--blue); background: rgba(79,195,247,0.06); }
+
+  /* Provider Menu */
+  .provider-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 360px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 6px;
+    margin-top: 4px;
+  }
+  .provider-menu::-webkit-scrollbar { width: 5px; }
+  .provider-menu::-webkit-scrollbar-track { background: transparent; }
+  .provider-menu::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .provider-category {
+    padding: 8px 10px 4px;
+    font-size: 0.78em;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid rgba(42,42,74,0.3);
+    margin-bottom: 4px;
+  }
+  .provider-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    background: var(--code-bg);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .provider-item:hover {
+    border-color: var(--blue);
+    background: rgba(79,195,247,0.06);
+  }
+  .provider-item .prov-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.84em;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .provider-item .prov-url {
+    font-size: 0.72em;
+    color: var(--text-dim);
+    font-family: Consolas, monospace;
+    word-break: break-all;
+  }
+  .import-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 340px;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 8px;
+  }
+  .import-menu::-webkit-scrollbar { width: 5px; }
+  .import-menu::-webkit-scrollbar-track { background: transparent; }
+  .import-menu::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .import-menu-loading {
+    padding: 12px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85em;
+  }
+  .import-menu-list { display: flex; flex-direction: column; gap: 4px; }
+  .import-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    background: var(--code-bg);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .import-item:hover {
+    border-color: var(--blue);
+    background: rgba(79,195,247,0.06);
+  }
+  .import-item .prov-name {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .import-item .prov-url {
+    font-size: 0.72em;
+    color: var(--text-dim);
+    font-family: Consolas, monospace;
+    word-break: break-all;
+  }
+  .import-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85em;
+  }
+
+  /* Buttons */
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.88em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--gradient);
+    color: #fff;
+    width: 100%;
+    margin-top: 16px;
+  }
+  .btn-primary:hover { box-shadow: 0 4px 16px rgba(233,69,96,0.3); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+  .btn-success { background: var(--green); color: #0f0f1a; }
+  .btn-success:hover { box-shadow: 0 4px 16px rgba(0,210,160,0.3); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 16px;
+  }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Search */
+  .search-box {
+    margin: 16px 0 10px;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 9px 12px 9px 32px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85em;
+    outline: none;
+  }
+  .search-box input:focus { border-color: var(--blue); }
+  .search-box::before {
+    content: '🔍';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+    opacity: 0.5;
+  }
+
+  .model-count {
+    font-size: 0.78em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .model-count .num { color: var(--blue); font-weight: 700; }
+
+  /* Model Sections (two-zone layout) */
+  .model-zone {
+    margin-bottom: 12px;
+  }
+  .model-zone:last-child {
+    margin-bottom: 0;
+  }
+  .zone-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 6px;
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .zone-header .zone-icon { opacity: 0.7; }
+  .zone-header .zone-count {
+    font-size: 0.72em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .zone-header-unconfigured { color: var(--yellow); }
+  .zone-header-configured { color: var(--green); }
+
+  .model-list-zone {
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--code-bg);
+    max-height: 300px;
+  }
+  .model-list-zone::-webkit-scrollbar { width: 5px; }
+  .model-list-zone::-webkit-scrollbar-track { background: transparent; }
+  .model-list-zone::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .model-item {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(42,42,74,0.5);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .model-item:last-child { border-bottom: none; }
+  .model-item:hover { background: rgba(255,255,255,0.02); }
+  .model-item.selected {
+    background: rgba(233,69,96,0.08);
+    border-left: 3px solid var(--accent);
+    padding-left: 11px;
+  }
+
+  .model-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .model-id {
+    font-family: 'Cascadia Code', Consolas, monospace;
+    font-size: 0.85em;
+    color: var(--blue);
+    word-break: break-all;
+  }
+  .model-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.68em;
+    font-weight: 600;
+  }
+  .tag-green { background: rgba(0,210,160,0.12); color: var(--green); }
+  .tag-blue { background: rgba(79,195,247,0.12); color: var(--blue); }
+  .tag-yellow { background: rgba(255,200,87,0.12); color: var(--yellow); }
+  .tag-quota { background: rgba(79,195,247,0.08); color: var(--blue); }
+  .tag-quota-low { background: rgba(233,69,96,0.12); color: var(--accent); }
+
+  /* Inline action buttons on model items */
+  .model-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 4px 8px;
+    margin: 0;
+    line-height: 1;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-add {
+    color: var(--green);
+    font-weight: 700;
+  }
+  .btn-add:hover { color: #fff; background: var(--green); border-radius: 4px; }
+  .btn-remove {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .btn-remove:hover { color: #fff; background: var(--accent); border-radius: 4px; }
+
+  .model-empty-zone {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.82em;
+  }
+
+  /* Right Main Area */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .main-header {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+  }
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px 40px;
+  }
+
+  .main-content .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    gap: 12px;
+  }
+
+  .main-content .empty-state .icon {
+    width: 60px;
+    height: 60px;
+    background: var(--code-bg);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    opacity: 0.6;
+  }
+
+  .main-content .empty-state p {
+    font-size: 0.9em;
+    max-width: 280px;
+    text-align: center;
+  }
+
+  .main-content .empty-state .subtle {
+    font-size: 0.78em;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .detail-card {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .detail-card .label {
+    font-size: 0.7em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .detail-card .value {
+    font-size: 0.85em;
+    font-weight: 500;
+    font-family: 'Cascadia Code', Consolas, monospace;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .param-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .param-item label {
+    font-size: 0.72em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .param-item input {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.82em;
+    font-family: 'Cascadia Code', Consolas, monospace;
+    outline: none;
+  }
+
+  .param-item input:focus {
+    border-color: var(--blue);
+  }
+
+  .chat-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 250px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--code-bg);
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 5px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .chat-msg {
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .chat-msg:last-child { margin-bottom: 0; }
+
+  .chat-msg .role {
+    font-size: 0.7em;
+    font-weight: 600;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .chat-msg.user .role { color: var(--blue); }
+  .chat-msg.assistant .role { color: var(--green); }
+
+  .chat-msg pre {
+    background: var(--bg);
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.8em;
+    margin: 4px 0;
+  }
+
+  .chat-msg code {
+    font-family: 'Cascadia Code', Consolas, monospace;
+    font-size: 0.85em;
+    background: rgba(255,255,255,0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input-row input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.88em;
+    outline: none;
+  }
+
+  .chat-input-row input:focus {
+    border-color: var(--blue);
+  }
+
+  .chat-input-row .btn-primary {
+    width: auto;
+    margin: 0;
+    padding: 10px 20px;
+    flex-shrink: 0;
+  }
+
+  .chat-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 0.78em;
+    color: var(--text-dim);
+  }
+
+  .chat-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .chat-stats .val {
+    color: var(--green);
+    font-weight: 600;
+    font-family: 'Cascadia Code', Consolas, monospace;
+  }
+
+  .error-msg {
+    background: rgba(233,69,96,0.1);
+    border: 1px solid rgba(233,69,96,0.3);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 10px;
+    font-size: 0.82em;
+    color: var(--accent);
+  }
+
+  @media (max-width: 900px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; max-height: 55vh; }
+    .detail-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>🔍 模型发现</h1>
+      <div class="subtitle">OpenClaw LLM Discovery Tool</div>
+    </div>
+
+    <div class="sidebar-fixed">
+      <div class="import-row">
+        <div class="import-wrap">
+          <button class="btn-import" id="importBtn" onclick="toggleImportMenu()">📥 导入已有配置</button>
+          <div class="import-menu" id="importMenu" style="display:none">
+            <div class="import-menu-loading" id="importLoading">加载中...</div>
+            <div class="import-menu-list" id="importList"></div>
+          </div>
+        </div>
+        <div class="provider-wrap">
+          <button class="btn-import" id="providerBtn" onclick="toggleProviderMenu()">🏪 选择供应商</button>
+          <div class="provider-menu" id="providerMenu" style="display:none"></div>
+        </div>
+      </div>
+
+      <form class="api-form">
+        <label>Base URL</label>
+        <div class="input-with-actions">
+          <input type="text" id="baseUrl" placeholder="https://api.example.com/v1" autofocus>
+          <button type="button" class="input-action-btn btn-clear" onclick="clearField('baseUrl')" title="清空">×</button>
+        </div>
+
+        <label>API Key</label>
+        <div class="input-with-actions">
+          <input type="password" id="apiKey" placeholder="sk-...">
+          <button type="button" class="input-action-btn" onclick="toggleVis()" title="显示/隐藏">👁</button>
+          <button type="button" class="input-action-btn btn-clear" onclick="clearField('apiKey')" title="清空">×</button>
+        </div>
+      </form>
+
+      <button class="btn-primary" id="fetchBtn" onclick="fetchModels()">
+        <span id="fetchText">发现可用模型</span>
+      </button>
+      <div id="fetchError"></div>
+    </div>
+
+    <div class="sidebar-scroll">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="搜索模型或厂商..." oninput="filterModels()">
+      </div>
+      <div class="model-count" id="modelCountWrap" style="display:none">
+        共 <span class="num" id="modelCount">0</span> 个模型
+      </div>
+
+      <div class="model-zone" id="unconfiguredZone" style="display:none">
+        <div class="zone-header zone-header-unconfigured">
+          <span class="zone-icon">⏳</span>
+          <span>待配置</span>
+          <span class="zone-count" id="unconfiguredCount">0</span>
+        </div>
+        <div class="model-list-zone" id="unconfiguredList"></div>
+      </div>
+
+      <div class="model-zone" id="configuredZone" style="display:none">
+        <div class="zone-header zone-header-configured">
+          <span class="zone-icon">✅</span>
+          <span>已配置</span>
+          <span class="zone-count" id="configuredCount">0</span>
+        </div>
+        <div class="model-list-zone" id="configuredList"></div>
+      </div>
+
+      <div id="rateLimitInfo" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="main-header" id="mainHeader" style="display:none">
+      <div class="breadcrumb">
+        <span class="model-name" id="headerModel">-</span>
+        <span class="separator">/</span>
+        <span class="provider-name" id="headerProvider">-</span>
+      </div>
+    </div>
+    <div class="main-content" id="mainContent">
+      <div class="empty-state" id="emptyState">
+        <div class="icon">📦</div>
+        <p>在左侧输入 API 信息，发现可用模型</p>
+        <p class="subtle">选择模型后在这里查看详情和测试</p>
+      </div>
+      <div id="modelDetail" style="display:none">
+        <div class="detail-section">
+          <span class="section-title">模型信息</span>
+          <div class="detail-grid">
+            <div class="detail-card"><div class="label">Model ID</div><div class="value" id="detailId">-</div></div>
+            <div class="detail-card"><div class="label">Provider</div><div class="value" id="detailOwner">-</div></div>
+            <div class="detail-card"><div class="label">Context Window</div><div class="value" id="detailCtx">-</div></div>
+            <div class="detail-card"><div class="label">Max Tokens</div><div class="value" id="detailMax">-</div></div>
+          </div>
+          <div class="param-row">
+            <div class="param-item"><label>Context Window（覆盖）</label><input type="number" id="ctxWindowInput" placeholder="128000"></div>
+            <div class="param-item"><label>Max Tokens（覆盖）</label><input type="number" id="maxTokensInput" placeholder="8192"></div>
+          </div>
+        </div>
+        <div class="chat-section">
+          <span class="section-title">聊天测试</span>
+          <div class="chat-messages" id="chatMessages">
+            <div style="color:var(--text-dim);text-align:center;padding:40px 0">输入消息测试模型是否可用</div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter'&&!chatStreaming)sendChat()">
+            <button class="btn-primary" onclick="sendChat()">发送</button>
+          </div>
+          <div class="chat-stats" id="chatStats" style="display:none">
+            <span>⏱️ <span class="val" id="chatElapsed">-</span>s</span>
+            <span>📊 <span class="val" id="chatTokens">-</span> tokens</span>
+            <span>🚀 <span class="val" id="chatTps">-</span> tok/s</span>
+            <span id="modelQuota"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const API = '';
+let allModels = [];
+let selectedModel = null;
+let chatStreaming = false;
+let workingBaseUrl = '';
+let rateLimitInfo = null;
+let configuredModelIds = new Set();
+let configuredProviders = {};
+let importProviders = [];
+
+const PROVIDER_DISPLAY_NAMES = {
+  'custom-api-inference-modelscope-cn': 'ModelScope（魔搭）',
+  'custom-api-kilo-ai': 'Kilo AI',
+  'custom-api-scnet-cn': 'SCNet（超算互联网）',
+  'custom-token-sensenova-cn': 'SenseNova（商汤日日新）',
+  'custom-35-212-153-205': 'GCP Gemini（谷歌）',
+  'modelscope': 'ModelScope（魔搭）',
+  'kilo': 'Kilo AI',
+  'scnet': 'SCNet（超算互联网）',
+  'sensenova': 'SenseNova（商汤日日新）',
+  'gemini': 'Google（谷歌）',
+  'google': 'Google（谷歌）',
+  'deepseek': 'DeepSeek（深度求索）',
+  'zhipuai': 'ZhipuAI（智谱）',
+  'moonshot': 'Moonshot（月之暗面）',
+  'minimax': 'MiniMax',
+  'openai': 'OpenAI',
+  'anthropic': 'Anthropic',
+  'siliconflow': 'SiliconFlow（硅基流动）',
+  'huggingface': 'Hugging Face',
+  'groq': 'Groq',
+  'openrouter': 'OpenRouter',
+  'ollama': 'Ollama（本地）',
+  'azure': 'Azure（微软）',
+};
+function resolveProviderDisplayName(providerId) {
+  if (PROVIDER_DISPLAY_NAMES[providerId]) return PROVIDER_DISPLAY_NAMES[providerId];
+  const stripped = providerId.replace(/^custom-/, '').replace(/-[a-f0-9]{6,}$/, '');
+  if (PROVIDER_DISPLAY_NAMES[stripped]) return PROVIDER_DISPLAY_NAMES[stripped];
+  for (const [key, name] of Object.entries(PROVIDER_DISPLAY_NAMES)) {
+    if (stripped.includes(key) || key.includes(stripped)) return name;
+  }
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+}
+
+const KNOWN_PROVIDERS = [
+  { category: '🇨🇳 国内直连', items: [
+    { name: 'ModelScope(魔搭)', baseUrl: 'https://api-inference.modelscope.cn/v1' },
+    { name: 'SiliconFlow(硅基流动)', baseUrl: 'https://api.siliconflow.cn/v1' },
+    { name: 'ZhipuAI(智谱)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    { name: 'DeepSeek(深度求索)', baseUrl: 'https://api.deepseek.com' },
+    { name: 'Moonshot(月之暗面)', baseUrl: 'https://api.moonshot.cn/v1' },
+    { name: 'MiniMax', baseUrl: 'https://api.minimax.chat/v1' },
+    { name: 'SenseNova(商汤日日新)', baseUrl: 'https://api.sensenova.cn/v1' },
+    { name: 'StepFun(阶跃星辰)', baseUrl: 'https://api.stepfun.com/v1' },
+    { name: 'Baichuan(百川)', baseUrl: 'https://api.baichuan-ai.com/v1' },
+    { name: 'Doubao(豆包)', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+  ]},
+  { category: '🌍 海外需代理', items: [
+    { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+    { name: 'Google AI Studio', baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+    { name: 'Anthropic(Claude)', baseUrl: 'https://api.anthropic.com' },
+    { name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1' },
+    { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
+    { name: 'Mistral', baseUrl: 'https://api.mistral.ai/v1' },
+    { name: 'Cohere', baseUrl: 'https://api.cohere.com/v2' },
+    { name: 'Together AI', baseUrl: 'https://api.together.xyz/v1' },
+    { name: 'Fireworks AI', baseUrl: 'https://api.fireworks.ai/v1' },
+    { name: 'xAI(Grok)', baseUrl: 'https://api.x.ai/v1' },
+    { name: 'Hugging Face', baseUrl: 'https://router.huggingface.co/v1' },
+  ]},
+  { category: '💻 本地运行', items: [
+    { name: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
+    { name: 'LM Studio', baseUrl: 'http://localhost:1234/v1' },
+  ]},
+];
+
+function toggleProviderMenu() {
+  const menu = document.getElementById('providerMenu');
+  const btn = document.getElementById('providerBtn');
+  document.getElementById('importMenu').style.display = 'none';
+  document.getElementById('importBtn').classList.remove('active');
+  if (menu.style.display !== 'none') {
+    menu.style.display = 'none';
+    btn.classList.remove('active');
+    return;
+  }
+  menu.style.display = 'block';
+  btn.classList.add('active');
+  renderProviderMenu();
+}
+
+function renderProviderMenu() {
+  const menu = document.getElementById('providerMenu');
+  let html = '';
+  for (const cat of KNOWN_PROVIDERS) {
+    html += `<div class="provider-category">${cat.category}</div>`;
+    for (const item of cat.items) {
+      const escapedUrl = item.baseUrl.replace(/'/g, "\\'");
+      html += `<div class="provider-item" onclick="applyKnownProvider('${escapedUrl}')">
+        <div class="prov-label">${item.name}</div>
+        <div class="prov-url">${item.baseUrl}</div>
+      </div>`;
+    }
+  }
+  menu.innerHTML = html;
+}
+function applyKnownProvider(baseUrl) {
+  document.getElementById('baseUrl').value = baseUrl;
+  document.getElementById('providerMenu').style.display = 'none';
+  document.getElementById('providerBtn').classList.remove('active');
+  const isLocal = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+  if (isLocal) {
+    document.getElementById('apiKey').value = 'no-key-needed';
+    fetchModels();
+  } else {
+    document.getElementById('apiKey').focus();
+  }
+}
+
+async function loadCurrentConfig() {
+  try {
+    const resp = await fetch(`${API}/api/current-config`);
+    const data = await resp.json();
+    configuredProviders = data.current || {};
+    configuredModelIds = new Set();
+    for (const [pid, info] of Object.entries(configuredProviders)) {
+      for (const m of info.models) {
+        configuredModelIds.add(m);
+      }
+    }
+  } catch {
+    configuredProviders = {};
+    configuredModelIds = new Set();
+  }
+  if (allModels.length > 0) {
+    renderModelZones(allModels);
+  } else {
+    document.getElementById('unconfiguredZone').style.display = 'none';
+    document.getElementById('configuredZone').style.display = 'none';
+  }
+}
+
+async function loadImportProviders() {
+  try {
+    const resp = await fetch(`${API}/api/providers`);
+    const data = await resp.json();
+    importProviders = data.providers || [];
+  } catch {
+    importProviders = [];
+    try {
+      const resp = await fetch(`${API}/api/current-config`);
+      const data = await resp.json();
+      for (const [pid, info] of Object.entries(data.current)) {
+        importProviders.push({ id: pid, baseUrl: info.baseUrl, apiKey: '', models: info.models });
+      }
+    } catch {}
+  }
+}
+
+async function toggleImportMenu() {
+  const menu = document.getElementById('importMenu');
+  const btn = document.getElementById('importBtn');
+  const provMenu = document.getElementById('providerMenu');
+  const provBtn = document.getElementById('providerBtn');
+  if (provMenu) { provMenu.style.display = 'none'; provBtn.classList.remove('active'); }
+  if (menu.style.display !== 'none') {
+    menu.style.display = 'none';
+    btn.classList.remove('active');
+    return;
+  }
+  menu.style.display = 'block';
+  btn.classList.add('active');
+  const loadingEl = document.getElementById('importLoading');
+  const listEl = document.getElementById('importList');
+  loadingEl.style.display = 'block';
+  listEl.innerHTML = '';
+  await loadImportProviders();
+  loadingEl.style.display = 'none';
+  if (importProviders.length === 0) {
+    listEl.innerHTML = '<div class="import-empty">暂无可导入的配置</div>';
+    return;
+  }
+  listEl.innerHTML = importProviders.map(p => {
+    const displayName = resolveProviderDisplayName(p.id);
+    return `<div class="import-item" onclick="applyProvider('${p.id.replace(/'/g, "\\'")}')">
+      <div class="prov-name">${displayName}</div>
+      <div class="prov-url">${p.baseUrl}</div>
+    </div>`;
+  }).join('');
+}
+function applyProvider(providerId) {
+  const provider = importProviders.find(p => p.id === providerId);
+  if (!provider) return;
+  document.getElementById('baseUrl').value = provider.baseUrl;
+  document.getElementById('apiKey').value = provider.apiKey;
+  document.getElementById('importMenu').style.display = 'none';
+  document.getElementById('importBtn').classList.remove('active');
+}
+
+document.addEventListener('click', (e) => {
+  const importMenu = document.getElementById('importMenu');
+  const importBtn = document.getElementById('importBtn');
+  if (importMenu.style.display !== 'none' && !importMenu.contains(e.target) && !importBtn.contains(e.target)) {
+    importMenu.style.display = 'none';
+    importBtn.classList.remove('active');
+  }
+  const provMenu = document.getElementById('providerMenu');
+  const provBtn = document.getElementById('providerBtn');
+  if (provMenu && provMenu.style.display !== 'none' && !provMenu.contains(e.target) && !provBtn.contains(e.target)) {
+    provMenu.style.display = 'none';
+    provBtn.classList.remove('active');
+  }
+});
+
+function toggleVis() {
+  const input = document.getElementById('apiKey');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function clearField(fieldId) {
+  document.getElementById(fieldId).value = '';
+  document.getElementById(fieldId).focus();
+}
+
+async function fetchModels() {
+  const baseUrl = document.getElementById('baseUrl').value.trim();
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!baseUrl || !apiKey) {
+    document.getElementById('fetchError').innerHTML = '<div class="error-msg">❌ 请填写 Base URL 和 API Key</div>';
+    return;
+  }
+  const btn = document.getElementById('fetchBtn');
+  const text = document.getElementById('fetchText');
+  btn.disabled = true;
+  text.innerHTML = '<span class="spinner"></span> 发现中...';
+  document.getElementById('fetchError').innerHTML = '';
+  try {
+    const resp = await fetch(`${API}/api/fetch-models?url=${encodeURIComponent(baseUrl)}&key=${encodeURIComponent(apiKey)}`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '请求失败');
+    allModels = data.models;
+    workingBaseUrl = data.workingBaseUrl || baseUrl;
+    rateLimitInfo = data.rateLimit || null;
+    selectedModel = null;
+    document.getElementById('modelCount').textContent = allModels.length;
+    document.getElementById('modelCountWrap').style.display = 'flex';
+    await loadCurrentConfig();
+  } catch (err) {
+    document.getElementById('fetchError').innerHTML = `<div class="error-msg">❌ ${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    text.textContent = '发现可用模型';
+  }
+}
+function renderModelZones(models) {
+  const searchBaseUrl = document.getElementById('baseUrl').value.trim().replace(/\/+$/, '');
+  const unconfigured = [], configured = [];
+  for (const m of models) {
+    if (configuredModelIds.has(m.id)) {
+      configured.push(m);
+    } else {
+      unconfigured.push(m);
+    }
+  }
+  const unconfZone = document.getElementById('unconfiguredZone');
+  const unconfList = document.getElementById('unconfiguredList');
+  const unconfCount = document.getElementById('unconfiguredCount');
+  if (unconfigured.length > 0) {
+    unconfZone.style.display = 'block';
+    unconfCount.textContent = `${unconfigured.length}`;
+    unconfList.innerHTML = unconfigured.map(m => `
+      <div class="model-item" onclick="selectModel('${m.id.replace(/'/g, "\\'")}', false)" data-model-id="${m.id}">
+        <div class="model-info">
+          <span class="model-id">${m.id}</span>
+          <div class="model-tags">
+            ${m.owned_by ? `<span class="tag tag-green">${m.owned_by}</span>` : ''}
+            ${m.context_window ? `<span class="tag tag-blue">ctx ${formatNumber(m.context_window)}</span>` : ''}
+            ${m.max_tokens ? `<span class="tag tag-yellow">max ${formatNumber(m.max_tokens)}</span>` : ''}
+            ${renderQuotaTag()}
+          </div>
+        </div>
+        <button class="model-action-btn btn-add" onclick="event.stopPropagation();addModelInline('${m.id.replace(/'/g, "\\'")}')">+</button>
+      </div>
+    `).join('');
+  } else {
+    unconfZone.style.display = models.length > 0 ? 'block' : 'none';
+    unconfCount.textContent = '0';
+    unconfList.innerHTML = '<div class="model-empty-zone">所有搜索到的模型都已配置 ✓</div>';
+  }
+
+  const confZone = document.getElementById('configuredZone');
+  const confList = document.getElementById('configuredList');
+  const confCount = document.getElementById('configuredCount');
+  renderConfiguredInSearchZone(configured, searchBaseUrl, confZone, confList, confCount);
+}
+
+function renderConfiguredInSearchZone(searchConfigured, searchBaseUrl, confZone, confList, confCount) {
+  const fromSearch = searchConfigured || [];
+  const allConfigured = [];
+  for (const m of fromSearch) {
+    allConfigured.push({ id: m.id, providerId: findProviderForModel(m.id), owned_by: m.owned_by, context_window: m.context_window, max_tokens: m.max_tokens });
+  }
+  for (const [pid, info] of Object.entries(configuredProviders)) {
+    if (info.baseUrl.replace(/\/+$/, '') === searchBaseUrl) {
+      for (const m of info.models) {
+        if (!allConfigured.find(c => c.id === m)) {
+          allConfigured.push({ id: m, providerId: pid, owned_by: pid, context_window: null, max_tokens: null });
+        }
+      }
+    }
+  }
+  if (allConfigured.length > 0) {
+    confZone.style.display = 'block';
+    confCount.textContent = `${allConfigured.length}`;
+    confList.innerHTML = allConfigured.map(m => {
+      const pid = m.providerId || findProviderForModel(m.id);
+      return `
+      <div class="model-item" onclick="selectModel('${m.id.replace(/'/g, "\\'")}', true)" data-model-id="${m.id}">
+        <div class="model-info">
+          <span class="model-id">${m.id}</span>
+          <div class="model-tags">
+            ${m.owned_by ? `<span class="tag tag-green">${m.owned_by}</span>` : ''}
+            ${m.context_window ? `<span class="tag tag-blue">ctx ${formatNumber(m.context_window)}</span>` : ''}
+            ${m.max_tokens ? `<span class="tag tag-yellow">max ${formatNumber(m.max_tokens)}</span>` : ''}
+            ${renderQuotaTag()}
+          </div>
+        </div>
+        <button class="model-action-btn btn-remove" onclick="event.stopPropagation();removeModelInline('${pid.replace(/'/g, "\\'")}', '${m.id.replace(/'/g, "\\'")}')">×</button>
+      </div>
+    `}).join('');
+  } else {
+    confZone.style.display = 'none';
+  }
+}
+function findProviderForModel(modelId) {
+  for (const [pid, info] of Object.entries(configuredProviders)) {
+    if (info.models.includes(modelId)) return pid;
+  }
+  return null;
+}
+
+async function addModelInline(modelId) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const baseUrl = workingBaseUrl;
+  if (!baseUrl || !apiKey) { alert('请先填写 Base URL 和 API Key'); return; }
+  const model = allModels.find(m => m.id === modelId);
+  if (!model) return;
+  try {
+    const resp = await fetch(`${API}/api/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl, apiKey, modelId: model.id, contextWindow: model.context_window || null, maxTokens: model.max_tokens || null }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '保存失败');
+    await loadCurrentConfig();
+  } catch (err) {
+    alert('添加失败：' + err.message);
+  }
+}
+
+async function removeModelInline(providerId, modelId) {
+  if (!providerId) { providerId = findProviderForModel(modelId); }
+  if (!providerId) { alert('找不到该模型所属的 provider'); return; }
+  try {
+    const resp = await fetch(`${API}/api/delete-model`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId, modelId }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '删除失败');
+    await loadCurrentConfig();
+  } catch (err) {
+    alert('删除失败：' + err.message);
+  }
+}
+
+function selectModel(modelId, isConfigured) {
+  document.querySelectorAll('.model-item').forEach(el => el.classList.remove('selected'));
+  const item = document.querySelector(`.model-item[data-model-id="${modelId}"]`);
+  if (item) item.classList.add('selected');
+  selectedModel = allModels.find(m => m.id === modelId);
+  if (!selectedModel) {
+    selectedModel = { id: modelId, owned_by: findProviderForModel(modelId) || '', context_window: null, max_tokens: null };
+  }
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('modelDetail').style.display = 'block';
+  document.getElementById('mainHeader').style.display = 'flex';
+  document.getElementById('headerModel').textContent = selectedModel.id;
+  document.getElementById('headerProvider').textContent = selectedModel.owned_by || '';
+  document.getElementById('detailId').textContent = selectedModel.id;
+  document.getElementById('detailOwner').textContent = selectedModel.owned_by || '-';
+  document.getElementById('detailCtx').textContent = selectedModel.context_window ? formatNumber(selectedModel.context_window) : '-';
+  document.getElementById('detailMax').textContent = selectedModel.max_tokens ? formatNumber(selectedModel.max_tokens) : '-';
+  document.getElementById('ctxWindowInput').value = selectedModel.context_window || '';
+  document.getElementById('maxTokensInput').value = selectedModel.max_tokens || '';
+  document.getElementById('chatMessages').innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px 0">输入消息测试模型是否可用</div>';
+  document.getElementById('chatStats').style.display = 'none';
+  document.getElementById('chatInput').value = '';
+}
+
+function filterModels() {
+  if (allModels.length === 0) return;
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allModels.filter(m => m.id.toLowerCase().includes(q) || (m.owned_by || '').toLowerCase().includes(q));
+  renderModelZones(filtered);
+}
+
+async function sendChat() {
+  if (chatStreaming) return;
+  const baseUrl = workingBaseUrl;
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const message = document.getElementById('chatInput').value.trim();
+  if (!selectedModel || !message) return;
+  const messagesEl = document.getElementById('chatMessages');
+  const placeholder = messagesEl.querySelector('div[style]');
+  if (placeholder && placeholder.textContent.includes('输入消息测试')) messagesEl.innerHTML = '';
+  messagesEl.innerHTML += `<div class="chat-msg user"><span class="role">You</span><span>${escapeHtml(message)}</span></div>`;
+  const responseId = 'chatRes_' + Date.now();
+  messagesEl.innerHTML += `<div class="chat-msg assistant" id="${responseId}"><span class="role">${selectedModel.id}</span><span class="response-content"><span class="spinner"></span></span></div>`;
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  document.getElementById('chatInput').value = '';
+  document.getElementById('chatStats').style.display = 'none';
+  chatStreaming = true;
+  const btn = document.querySelector('.chat-input-row button');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const resp = await fetch(`${API}/api/test-chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl, apiKey, modelId: selectedModel.id, message }),
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', fullResponse = '';
+    const responseDiv = document.getElementById(responseId).querySelector('.response-content');
+    responseDiv.innerHTML = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const data = trimmed.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) {
+            responseDiv.innerHTML = `<span style="color:var(--error)">❌ ${escapeHtml(parsed.error)}</span>`;
+          } else if (parsed.rateLimit) {
+            rateLimitInfo = parsed.rateLimit;
+            renderRateLimit();
+            updateQuotaTags();
+          } else if (parsed.done) {
+            document.getElementById('chatElapsed').textContent = parsed.elapsed;
+            document.getElementById('chatTokens').textContent = parsed.tokens;
+            document.getElementById('chatTps').textContent = parsed.tps;
+            document.getElementById('chatStats').style.display = 'flex';
+          } else if (parsed.content) {
+            fullResponse += parsed.content;
+            responseDiv.innerHTML = formatMarkdown(fullResponse);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    const el = document.getElementById(responseId);
+    if (el) el.querySelector('.response-content').innerHTML = `<span style="color:var(--error)">❌ ${escapeHtml(err.message)}</span>`;
+  } finally {
+    chatStreaming = false;
+    btn.disabled = false;
+    btn.textContent = '发送';
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderRateLimit() {
+  const el = document.getElementById('rateLimitInfo');
+  if (!rateLimitInfo || !el) { if (el) el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const total = rateLimitInfo['modelscope-ratelimit-requests-limit'];
+  const remaining = rateLimitInfo['modelscope-ratelimit-requests-remaining'];
+  const modelLimit = rateLimitInfo['modelscope-ratelimit-model-requests-limit'];
+  const modelRemaining = rateLimitInfo['modelscope-ratelimit-model-requests-remaining'];
+  let html = '';
+  if (total && remaining !== undefined) {
+    const pct = Math.round((remaining / total) * 100);
+    const color = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--accent)';
+    html += `<div style="margin-bottom:6px"><span style="color:var(--text-dim);font-size:0.78em">今日剩余额度</span></div>`;
+    html += `<div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:1.4em;font-weight:800;color:${color}">${remaining}</span><span style="color:var(--text-dim);font-size:0.82em">/ ${total}</span></div>`;
+    html += `<div style="height:4px;background:var(--code-bg);border-radius:2px;margin-top:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width 0.3s"></div></div>`;
+  }
+  if (modelLimit && modelRemaining !== undefined) {
+    const modelName = selectedModel ? selectedModel.id.split('/').pop() : '';
+    html += `<div style="margin-top:10px;font-size:0.78em;color:var(--text-dim)">当前模型${modelName ? ': <span style="color:var(--text);font-weight:600">' + escapeHtml(modelName) + '</span>' : ''} <span style="color:var(--blue);font-weight:700">${modelRemaining}</span> / ${modelLimit}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function formatNumber(n) {
+  if (!n) return '';
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(0) + 'k';
+  return String(n);
+}
+
+function renderQuotaTag() {
+  if (!rateLimitInfo) return '';
+  const remaining = rateLimitInfo['modelscope-ratelimit-requests-remaining'];
+  const total = rateLimitInfo['modelscope-ratelimit-requests-limit'];
+  if (remaining === undefined || total === undefined) return '';
+  const pct = remaining / total;
+  const cls = pct > 0.2 ? 'tag-quota' : 'tag-quota-low';
+  return `<span class="tag ${cls}">🎫 ${remaining}/${total}</span>`;
+}
+
+function updateQuotaTags() {
+  if (!rateLimitInfo) return;
+  const remaining = rateLimitInfo['modelscope-ratelimit-requests-remaining'];
+  const total = rateLimitInfo['modelscope-ratelimit-requests-limit'];
+  if (remaining === undefined || total === undefined) return;
+  const pct = remaining / total;
+  const cls = pct > 0.2 ? 'tag-quota' : 'tag-quota-low';
+  document.querySelectorAll('.tag-quota, .tag-quota-low').forEach(el => {
+    el.textContent = `🎫 ${remaining}/${total}`;
+    el.className = `tag ${cls}`;
+  });
+  const modelRemaining = rateLimitInfo['modelscope-ratelimit-model-requests-remaining'];
+  const modelLimit = rateLimitInfo['modelscope-ratelimit-model-requests-limit'];
+  const modelQuotaEl = document.getElementById('modelQuota');
+  if (modelQuotaEl) {
+    if (modelRemaining !== undefined && modelLimit !== undefined) {
+      const mpct = modelRemaining / modelLimit;
+      const color = mpct > 0.2 ? 'var(--blue)' : 'var(--accent)';
+      modelQuotaEl.textContent = `📊 ${modelRemaining}/${modelLimit}`;
+      modelQuotaEl.style.color = color;
+      modelQuotaEl.style.display = 'inline';
+    } else {
+      modelQuotaEl.style.display = 'none';
+    }
+  }
+}
+
+function formatMarkdown(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+loadCurrentConfig();
+document.getElementById('apiKey').addEventListener('keydown', e => { if (e.key === 'Enter') fetchModels(); });
+document.getElementById('baseUrl').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('apiKey').focus(); });
+</script>
+</body>
+</html>
+
