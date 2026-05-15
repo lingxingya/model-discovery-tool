@@ -1,0 +1,15 @@
+{
+  "name": "model-discovery-tool",
+  "version": "1.0.0",
+  "description": "LLM Model Discovery & Management Tool for OpenClaw",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "pm2": "pm2 start server.js --name model-discovery"
+  },
+  "keywords": ["openclaw", "llm", "models", "discovery", "api"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
